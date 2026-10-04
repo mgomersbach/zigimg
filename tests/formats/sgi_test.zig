@@ -230,7 +230,7 @@ test "SGI 64-bit RGBA uncompressed - alpha channel bug test" {
     const width: u16 = 2;
     const height: u16 = 2;
 
-    var file_data: [544]u8 = .{0} ** 544;
+    var file_data: [544]u8 = @splat(0);
 
     file_data[0] = 0x01;
     file_data[1] = 0xda;

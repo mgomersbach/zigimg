@@ -4,6 +4,17 @@ const Allocator = std.mem.Allocator;
 const PixelFormat = @import("pixel_format.zig").PixelFormat;
 const TypeInfo = std.builtin.TypeInfo;
 
+/// `@bitCast` no longer supports `extern struct` as of Zig 0.17, so the
+/// color types below -- which bitcast to and from `@Vector` and each other
+/// to reuse the same underlying bytes -- reinterpret through a raw pointer
+/// instead. `*align(1)` on the destination side sidesteps alignment-increase
+/// errors regardless of either type's natural alignment.
+fn reinterpretBits(comptime Dest: type, value: anytype) Dest {
+    comptime std.debug.assert(@sizeOf(@TypeOf(value)) == @sizeOf(Dest));
+    var source = value;
+    return @as(*align(1) const Dest, @ptrCast(&source)).*;
+}
+
 fn isAll8BitColor(comptime red_type: type, comptime green_type: type, comptime blue_type: type, comptime alpha_type: type) bool {
     return red_type == u8 and green_type == u8 and blue_type == u8 and (alpha_type == u8 or alpha_type == void);
 }
@@ -1672,11 +1683,11 @@ pub const CIEXYZAlpha = extern struct {
     a: f32 align(1) = 1.0,
 
     pub inline fn fromFloat4(value: math.float4) CIEXYZAlpha {
-        return @bitCast(value);
+        return reinterpretBits(CIEXYZAlpha, value);
     }
 
     pub inline fn toFloat4(self: CIEXYZAlpha) math.float4 {
-        return @bitCast(self);
+        return reinterpretBits(math.float4, self);
     }
 
     pub fn toXYZ(self: CIEXYZAlpha) CIEXYZ {
@@ -1830,11 +1841,11 @@ pub const CIELabAlpha = extern struct {
     }
 
     pub inline fn fromFloat4(value: math.float4) CIELabAlpha {
-        return @bitCast(value);
+        return reinterpretBits(CIELabAlpha, value);
     }
 
     pub inline fn toFloat4(self: CIELabAlpha) math.float4 {
-        return @bitCast(self);
+        return reinterpretBits(math.float4, self);
     }
 };
 
@@ -2050,11 +2061,11 @@ pub const CIELuvAlpha = extern struct {
     }
 
     pub inline fn fromFloat4(value: math.float4) CIELuvAlpha {
-        return @bitCast(value);
+        return reinterpretBits(CIELuvAlpha, value);
     }
 
     pub inline fn toFloat4(self: CIELuvAlpha) math.float4 {
-        return @bitCast(self);
+        return reinterpretBits(math.float4, self);
     }
 };
 
@@ -2280,11 +2291,11 @@ pub const HSLuvAlpha = extern struct {
     }
 
     pub inline fn fromFloat4(value: math.float4) CIELuvAlpha {
-        return @bitCast(value);
+        return reinterpretBits(CIELuvAlpha, value);
     }
 
     pub inline fn toFloat4(self: CIELuvAlpha) math.float4 {
-        return @bitCast(self);
+        return reinterpretBits(math.float4, self);
     }
 };
 
@@ -2386,11 +2397,11 @@ pub const OklabAlpha = extern struct {
     }
 
     pub inline fn fromFloat4(value: math.float4) OklabAlpha {
-        return @bitCast(value);
+        return reinterpretBits(OklabAlpha, value);
     }
 
     pub inline fn toFloat4(self: OklabAlpha) math.float4 {
-        return @bitCast(self);
+        return reinterpretBits(math.float4, self);
     }
 };
 
@@ -2840,7 +2851,7 @@ pub const RgbColorspace = struct {
         const all_ones: math.float4 = @splat(1.0);
 
         for (slice_rgba) |*rgba| {
-            const lab_alpha: CIELabAlpha = @bitCast(rgba.*);
+            const lab_alpha: CIELabAlpha = reinterpretBits(CIELabAlpha, rgba.*);
 
             const xyza = lab_alpha.toXYZAlphaPrecomputedWhitePoint(white_point_xyz);
 
@@ -2918,7 +2929,7 @@ pub const RgbColorspace = struct {
         const all_ones: math.float4 = @splat(1.0);
 
         for (slice_rgba) |*rgba| {
-            const luv_alpha: CIELuvAlpha = @bitCast(rgba.*);
+            const luv_alpha: CIELuvAlpha = reinterpretBits(CIELuvAlpha, rgba.*);
 
             const xyza = luv_alpha.toXYZAlphaPrecomputedWhitePoint(white_point_xyz);
 
@@ -2996,7 +3007,7 @@ pub const RgbColorspace = struct {
         const all_ones: math.float4 = @splat(1.0);
 
         for (slice_rgba) |*rgba| {
-            const lab_alpha: OklabAlpha = @bitCast(rgba.*);
+            const lab_alpha: OklabAlpha = reinterpretBits(OklabAlpha, rgba.*);
 
             const xyza = lab_alpha.toXYZAlpha();
 
