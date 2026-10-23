@@ -1524,3 +1524,35 @@ test "Write compressed Rgba32 to TGA" {
         try helpers.expectEq(pixels.bgra32[index].a, source_image.pixels.rgba32[index].a);
     }
 }
+
+test "Read a run-length encoded TGA file that ends with its last packet" {
+    // 4 x 2, 24 bits, bottom to top, no footer: a run of five red pixels,
+    // then three raw ones, blue, green and white.
+    const header = [_]u8{ 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 2, 0, 24, 0 };
+    const packets = [_]u8{ 0x84, 0, 0, 255, 0x02, 255, 0, 0, 0, 255, 0, 255, 255, 255 };
+    const bytes = header ++ packets;
+
+    var read_stream = zigimg.io.ReadStream.initMemory(bytes[0..]);
+
+    var tga_file = tga.TGA{};
+
+    const pixels = try tga_file.read(helpers.zigimg_test_allocator, &read_stream);
+    defer pixels.deinit(helpers.zigimg_test_allocator);
+
+    try helpers.expectEq(tga_file.width(), 4);
+    try helpers.expectEq(tga_file.height(), 2);
+    try std.testing.expect(pixels == .bgr24);
+
+    // The top row is the second in the file: red, blue, green, white.
+    const top = pixels.bgr24[0..4];
+    try helpers.expectEq(top[0].r, 255);
+    try helpers.expectEq(top[1].b, 255);
+    try helpers.expectEq(top[1].r, 0);
+    try helpers.expectEq(top[2].g, 255);
+    try helpers.expectEq(top[3].r, 255);
+    try helpers.expectEq(top[3].g, 255);
+    for (pixels.bgr24[4..]) |pixel| {
+        try helpers.expectEq(pixel.r, 255);
+        try helpers.expectEq(pixel.b, 0);
+    }
+}

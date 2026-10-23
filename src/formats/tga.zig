@@ -203,6 +203,12 @@ const TargaRLEDecoder = struct {
 
         state_machine: switch (self.state) {
             .read_header => {
+                // Hand over what this call decoded before taking another
+                // packet: the image may end here, with nothing after it.
+                if (remaining < @intFromEnum(limit)) {
+                    return @intFromEnum(limit) - remaining;
+                }
+
                 const packet_header = try self.source_reader.takeStruct(RLEPacketHeader, .little);
 
                 switch (packet_header.packet_type) {
